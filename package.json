@@ -1,0 +1,13 @@
+{
+  "name": "server-mariam",
+  "version": "1.0.0",
+  "private": true,
+  "description": "A lightweight experimental Node.js server for Fly.io",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}
