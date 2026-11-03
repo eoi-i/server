@@ -10,4 +10,15 @@
   "engines": {
     "node": ">=22"
   }
+  {
+  "name": "server-mariam",
+  "version": "2.0.0",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "pg": "^8.16.3"
+  }
+}
 }
