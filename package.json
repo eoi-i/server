@@ -1,24 +1,17 @@
+
 {
   "name": "server-mariam",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "private": true,
-  "description": "A lightweight experimental Node.js server for Fly.io",
+  "description": "Node.js PostgreSQL server for Fly.io",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
   },
   "engines": {
     "node": ">=22"
-  }
-  {
-  "name": "server-mariam",
-  "version": "2.0.0",
-  "main": "server.js",
-  "scripts": {
-    "start": "node server.js"
   },
   "dependencies": {
     "pg": "^8.16.3"
   }
-}
 }
