@@ -1,122 +1,296 @@
-const http = require("node:http");
-const os = require("node:os");
+
+"use strict";
+
+const http = require("http");
+const os = require("os");
+const { Pool } = require("pg");
 
 const PORT = Number(process.env.PORT || 8080);
-const HOST = "0.0.0.0";
+const DATABASE_URL = process.env.DATABASE_URL;
 
-function sendJson(res, statusCode, data) {
+// إعداد اتصال PostgreSQL
+const pool = DATABASE_URL
+  ? new Pool({
+      connectionString: DATABASE_URL,
+      connectionTimeoutMillis: 10000,
+      idleTimeoutMillis: 30000,
+      max: 10
+    })
+  : null;
+
+if (pool) {
+  pool.on("error", (error) => {
+    console.error("PostgreSQL pool error:", error.message);
+  });
+}
+
+// إرسال JSON
+function sendJSON(res, statusCode, data) {
   res.writeHead(statusCode, {
     "Content-Type": "application/json; charset=utf-8",
-    "Cache-Control": "no-store",
     "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type"
+    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization"
   });
+
   res.end(JSON.stringify(data, null, 2));
 }
 
+// فحص اتصال قاعدة البيانات
+async function checkDatabase() {
+  if (!pool) {
+    return {
+      connected: false,
+      status: "not_configured",
+      message: "DATABASE_URL is not configured"
+    };
+  }
+
+  try {
+    const result = await pool.query(`
+      SELECT
+        NOW() AS server_time,
+        current_database() AS database_name,
+        version() AS postgres_version
+    `);
+
+    return {
+      connected: true,
+      status: "connected",
+      database: result.rows[0].database_name,
+      server_time: result.rows[0].server_time,
+      version: result.rows[0].postgres_version
+    };
+  } catch (error) {
+    return {
+      connected: false,
+      status: "disconnected",
+      message: error.message
+    };
+  }
+}
+
+// قراءة جسم الطلب
 function readBody(req) {
   return new Promise((resolve, reject) => {
     let body = "";
+    let size = 0;
+    const limit = 1024 * 1024;
+
     req.on("data", chunk => {
-      body += chunk;
-      if (body.length > 1_000_000) {
-        reject(new Error("Request body is too large (maximum 1 MB)."));
+      size += chunk.length;
+
+      if (size > limit) {
+        reject(new Error("Request body too large"));
         req.destroy();
+        return;
       }
+
+      body += chunk.toString();
     });
+
     req.on("end", () => resolve(body));
     req.on("error", reject);
   });
 }
 
-const server = http.createServer(async (req, res) => {
-  try {
-    if (req.method === "OPTIONS") {
-      res.writeHead(204, {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
-        "Access-Control-Allow-Headers": "Content-Type"
-      });
-      return res.end();
-    }
+// صفحة الحالة الرئيسية
+function htmlPage(db) {
+  const color = db.connected ? "#16a34a" : "#dc2626";
+  const label = db.connected ? "CONNECTED" : "DISCONNECTED";
 
-    const url = new URL(req.url, `http://${req.headers.host || "localhost"}`);
-
-    if (req.method === "GET" && url.pathname === "/") {
-      res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
-      return res.end(`<!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Server Mariam</title>
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Server Status</title>
 <style>
-*{box-sizing:border-box}body{margin:0;background:#101827;color:#e8eefc;font:16px system-ui;display:grid;place-items:center;min-height:100vh;padding:20px}
-main{max-width:680px;width:100%;background:#1b2940;border:1px solid #34445f;border-radius:18px;padding:28px}
-h1{margin-top:0}.ok{color:#5ee0a0;font-weight:700}.links a{color:#8fc5ff;margin-right:18px}
-code{background:#101827;padding:3px 7px;border-radius:6px}
-</style></head><body><main>
-<h1>Server Mariam</h1><p class="ok">● Server is running</p>
-<p>A lightweight Node.js test server deployed on Fly.io.</p>
-<div class="links"><a href="/health">Health</a><a href="/api/info">API info</a></div>
-<p>Try sending JSON to <code>POST /api/echo</code>.</p>
-</main></body></html>`);
+body {
+  margin: 0;
+  padding: 30px;
+  background: #101827;
+  color: white;
+  font-family: Arial, sans-serif;
+}
+.container {
+  max-width: 650px;
+  margin: 30px auto;
+  background: #1e293b;
+  padding: 25px;
+  border-radius: 16px;
+}
+.status {
+  color: ${color};
+  font-weight: bold;
+  font-size: 22px;
+}
+.item {
+  padding: 13px;
+  margin-top: 12px;
+  background: #293548;
+  border-radius: 8px;
+  overflow-wrap: anywhere;
+}
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>KrAR Server</h1>
+  <p>Application: <strong>ONLINE</strong></p>
+  <p>PostgreSQL:
+    <span class="status">${label}</span>
+  </p>
+  <div class="item">
+    <strong>Database:</strong>
+    ${db.database || "Not available"}
+  </div>
+  <div class="item">
+    <strong>Message:</strong>
+    ${db.message || (db.connected ? "Connection successful" : "Connection unavailable")}
+  </div>
+  <div class="item">
+    <strong>Server time:</strong>
+    ${db.server_time || "Not available"}
+  </div>
+  <div class="item">
+    <strong>Runtime:</strong> Node.js ${process.version}
+  </div>
+  <div class="item">
+    <strong>Platform:</strong> ${os.platform()} / ${os.arch()}
+  </div>
+  <p>API: <code>/health</code></p>
+  <p>Database: <code>/api/db</code></p>
+</div>
+</body>
+</html>`;
+}
+
+// إنشاء السيرفر
+const server = http.createServer(async (req, res) => {
+  const url = new URL(req.url, `http://${req.headers.host || "localhost"}`);
+
+  // CORS preflight
+  if (req.method === "OPTIONS") {
+    res.writeHead(204, {
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type, Authorization"
+    });
+    return res.end();
+  }
+
+  try {
+    // الصفحة الرئيسية
+    if (req.method === "GET" && url.pathname === "/") {
+      const db = await checkDatabase();
+
+      res.writeHead(200, {
+        "Content-Type": "text/html; charset=utf-8"
+      });
+
+      return res.end(htmlPage(db));
     }
 
+    // فحص صحة السيرفر وقاعدة البيانات
     if (req.method === "GET" && url.pathname === "/health") {
-      return sendJson(res, 200, {
+      const db = await checkDatabase();
+
+      return sendJSON(res, db.connected ? 200 : 503, {
         status: "ok",
         service: "server-mariam",
-        uptimeSeconds: Math.floor(process.uptime()),
+        application: "online",
+        database: db,
+        uptime_seconds: Math.floor(process.uptime()),
         timestamp: new Date().toISOString()
       });
     }
 
+    // معلومات اتصال قاعدة البيانات
+    if (req.method === "GET" && url.pathname === "/api/db") {
+      const db = await checkDatabase();
+
+      return sendJSON(res, db.connected ? 200 : 503, db);
+    }
+
+    // معلومات النظام
     if (req.method === "GET" && url.pathname === "/api/info") {
-      return sendJson(res, 200, {
-        name: "Server Mariam",
-        runtime: `Node.js ${process.version}`,
-        platform: process.platform,
-        architecture: process.arch,
+      return sendJSON(res, 200, {
+        application: "server-mariam",
+        node: process.version,
+        platform: os.platform(),
+        architecture: os.arch(),
         hostname: os.hostname(),
         memory: {
-          totalBytes: os.totalmem(),
-          freeBytes: os.freemem()
+          total: os.totalmem(),
+          free: os.freemem()
         },
-        uptimeSeconds: Math.floor(process.uptime())
+        uptime: process.uptime()
       });
     }
 
+    // اختبار استقبال وإعادة JSON
     if (req.method === "POST" && url.pathname === "/api/echo") {
-      const raw = await readBody(req);
-      let payload;
+      const body = await readBody(req);
+
+      let data;
+
       try {
-        payload = raw ? JSON.parse(raw) : null;
+        data = JSON.parse(body);
       } catch {
-        return sendJson(res, 400, { error: "Invalid JSON body." });
+        return sendJSON(res, 400, {
+          error: "Invalid JSON"
+        });
       }
-      return sendJson(res, 200, {
-        message: "Data received successfully.",
-        received: payload,
-        receivedAt: new Date().toISOString()
+
+      return sendJSON(res, 200, {
+        success: true,
+        received: data,
+        timestamp: new Date().toISOString()
       });
     }
 
-    return sendJson(res, 404, {
-      error: "Not found",
-      availableRoutes: ["GET /", "GET /health", "GET /api/info", "POST /api/echo"]
+    // مسار غير موجود
+    return sendJSON(res, 404, {
+      error: "Not Found",
+      path: url.pathname
     });
+
   } catch (error) {
-    console.error("Request error:", error);
+    console.error("Request error:", error.message);
+
     if (!res.headersSent) {
-      sendJson(res, 500, { error: "Internal server error." });
+      return sendJSON(res, 500, {
+        error: "Internal Server Error"
+      });
     }
   }
 });
 
-server.listen(PORT, HOST, () => {
-  console.log(`Server Mariam listening on ${HOST}:${PORT}`);
+// تشغيل السيرفر
+server.listen(PORT, "0.0.0.0", () => {
+  console.log("================================");
+  console.log("       KrAR SERVER STARTED");
+  console.log("================================");
+  console.log("Port:", PORT);
+  console.log("Node:", process.version);
+  console.log("Database URL:", DATABASE_URL ? "CONFIGURED" : "MISSING");
 });
 
-process.on("SIGTERM", () => {
-  console.log("SIGTERM received; shutting down.");
-  server.close(() => process.exit(0));
-});
+// إغلاق الاتصالات بشكل آمن
+async function shutdown() {
+  console.log("Shutting down server...");
+
+  server.close(async () => {
+    if (pool) {
+      await pool.end();
+    }
+
+    process.exit(0);
+  });
+
+  setTimeout(() => process.exit(1), 10000).unref();
+}
+
+process.on("SIGTERM", shutdown);
+process.on("SIGINT", shutdown);
