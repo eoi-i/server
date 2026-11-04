@@ -1,56 +1,53 @@
 # Server Mariam (Node.js)
 
-A small experimental HTTP server designed for deployment on Fly.io.
+خادم HTTP تجريبي خفيف مبني على Node.js دون اعتماديات خارجية، ومهيأ للتشغيل على Fly.io.
 
-## Features
+## المزايا
 
-- `GET /` — simple status page
-- `GET /health` — health-check JSON
-- `GET /api/info` — runtime and server information
-- `POST /api/echo` — returns the JSON body you send
-- No external npm dependencies
+- `GET /` — لوحة حالة عربية متجاوبة مع تحديث مباشر للحالة والإحصاءات كل 30 ثانية.
+- `GET /health` — فحص صحة الخدمة.
+- `GET /api/status` — مدة التشغيل، واستخدام الذاكرة، وإصدار Node.js.
+- `GET /api/info` — معلومات عامة عن وقت التشغيل.
+- `POST /api/echo` — يعيد JSON المرسل للاختبار فقط.
+- حماية أساسية عبر ترويسات HTTP، والتحقق من JSON، وحد أقصى لحجم الطلب (1 MiB)، ومهلات للاتصال، وإيقاف سلس.
+- CORS مغلق افتراضياً للطلبات القادمة من متصفح على نطاق آخر. يمكن ضبط قائمة النطاقات المسموحة بمتغير `CORS_ORIGINS` مفصولة بفواصل. لا تستخدم `*` إلا إذا كان فتح الوصول لكل المواقع مقصوداً.
+- يعمل في Docker بمستخدم غير root.
 
-## Run locally
+## التشغيل محلياً
 
-Requires Node.js 22 or newer.
+يتطلب Node.js 22 أو أحدث:
 
 ```bash
 npm start
 ```
 
-Open `http://localhost:8080`.
+ثم افتح `http://localhost:8080`.
 
-## Deploy using GitHub + Fly.io
+مثال لتحديد نطاق مسموح لـ CORS:
 
-1. Create a new GitHub repository named `server-mariam`.
-2. Upload the contents of this folder to the repository root. Make sure `Dockerfile` and `fly.toml` are at the root.
-3. In Fly.io, open the existing app `server-mariam` and use its deployment flow to connect the GitHub repository, if that option is available.
-4. Fly.io builds the included `Dockerfile` and starts the server on port `8080`.
+```bash
+CORS_ORIGINS=https://app.example.com npm start
+```
 
-If deploying with Fly CLI instead, run from this folder:
+## الاختبار
+
+```bash
+curl http://localhost:8080/health
+curl http://localhost:8080/api/status
+
+curl -X POST http://localhost:8080/api/echo \
+  -H 'Content-Type: application/json' \
+  -d '{"message":"hello","number":123}'
+```
+
+## النشر على Fly.io
+
+ملف `fly.toml` مضبوط على التطبيق `server-mariam`. تأكد من أن اسم التطبيق يطابق تطبيقك، ثم نفّذ من جذر المشروع:
 
 ```bash
 fly deploy
 ```
 
-The Fly app name in `fly.toml` is `server-mariam`. If your actual Fly app has a different name, change the `app` value to match it.
+## ملاحظات أمنية
 
-## Test the API
-
-Health check:
-
-```bash
-curl https://YOUR-APP-NAME.fly.dev/health
-```
-
-Echo endpoint:
-
-```bash
-curl -X POST https://YOUR-APP-NAME.fly.dev/api/echo \
-  -H "Content-Type: application/json" \
-  -d '{"message":"hello","number":123}'
-```
-
-## Notes
-
-This is a public test server, not a production authentication or database service. Do not send passwords, private keys, or personal data to it. The echo endpoint reflects submitted JSON and is intended only for testing.
+هذا خادم اختبار عام وليس خدمة إنتاج للمصادقة أو قواعد البيانات. نقطة `/api/echo` تعكس البيانات التي ترسلها، لذلك لا ترسل كلمات مرور أو مفاتيح خاصة أو بيانات شخصية. عند إضافة واجهات API فعلية، أضف مصادقة وتفويضاً وتخزيناً آمناً وحدوداً مناسبة لمعدل الطلبات قبل نشرها للعامة.
