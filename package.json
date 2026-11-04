@@ -1,13 +1,16 @@
 {
   "name": "server-mariam",
-  "version": "3.0.0",
+  "version": "4.0.0",
   "private": true,
-  "description": "Native Node.js server without external dependencies",
+  "description": "Node.js HTTP server with PostgreSQL support",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
   },
   "engines": {
     "node": ">=22"
+  },
+  "dependencies": {
+    "pg": "^8.16.3"
   }
 }
