@@ -9,7 +9,8 @@ WORKDIR /app
 COPY package.json ./
 RUN npm install --omit=dev --no-audit --no-fund
 
-COPY --chown=node:node server.js ./
+# The server reads index.html from the application directory at startup.
+COPY --chown=node:node server.js index.html ./
 RUN chown -R node:node /app
 
 USER node
