@@ -5,14 +5,10 @@ ENV PORT=8080
 
 WORKDIR /app
 
-# Install production dependencies (including pg) during image build.
-COPY package.json ./
-RUN npm install --omit=dev --no-audit --no-fund
-
-COPY --chown=node:node server.js ./
-RUN chown -R node:node /app
+COPY --chown=node:node package.json server.js ./
+COPY --chown=node:node public ./public
 
 USER node
 EXPOSE 8080
 
-CMD ["node", "server.js"]
+CMD ["npm", "start"]

@@ -1,53 +1,56 @@
-# Server Mariam (Node.js + PostgreSQL)
+# GLOBALHOLMES LTD website
 
-خادم Node.js خفيف مع لوحة حالة عربية ودعم PostgreSQL عبر متغير Fly.io السري `POOLED_CONNECTION`.
+واجهة عربية متجاوبة لوكالة GLOBALHOLMES LTD على تيك توك لايف، تعمل بخادم Node.js 22 صغير داخل Docker، ومهيأة للنشر على Fly.io وربط النطاق `krar.live`.
 
-## التشغيل
+## التشغيل محليًا
 
-يتطلب Node.js 22 أو أحدث. بعد تثبيت الاعتماديات عبر `npm install`:
+يتطلب Node.js 22 أو أحدث:
 
-```bash
+```sh
 npm start
 ```
 
-## إعداد Fly.io
+ثم افتح `http://localhost:8080`. فحص الصحة: `http://localhost:8080/health`.
 
-أضف رابط الاتصال كـ **Secret** في Fly.io، ولا تضعه في Git أو ملفات الإعداد العامة:
+## صورة المديرة
 
-```bash
-fly secrets set POOLED_CONNECTION='postgres://USER:PASSWORD@HOST:PORT/DATABASE?sslmode=require' DB_API_TOKEN='ضع-هنا-قيمة-سرية-طويلة-وعشوائية'
+الصورة المرفقة في المحادثة لا تصل تلقائيًا إلى ملفات GitHub. أضيفي صورتك إلى مجلد `public` باسم `manager.webp` أو `manager.jpg`، ثم عدّلي عنصر الصورة في `public/index.html` ليشير إلى اسم الملف. لا ترفعي صورة لا تملكين حق نشرها. يتضمن الموقع صورة SVG مؤقتة حتى إضافة الصورة الشخصية.
+
+## النشر على Fly.io
+
+ملف `fly.toml` يستخدم اسم تطبيق Fly الحالي `server-mariam` حتى لا ينشئ أو يستهدف تطبيقًا آخر بالخطأ. اسم التطبيق هو معرّف Fly، وليس اسم النطاق. للنشر من جهازك بعد تثبيت Fly CLI وتسجيل الدخول، ومن جذر المشروع وعلى هذا الفرع:
+
+```sh
+flyctl status --app server-mariam
+flyctl deploy --app server-mariam
 ```
 
-استخدم قيمة رابط قاعدة البيانات الفعلية التي زودك بها مزودك؛ المثال أعلاه توضيحي فقط. لا تشارك الرابط أو الرمز في المحادثات أو السجلات. بعد ضبط الأسرار انشر التطبيق من جذر المشروع:
+لا أستطيع تشغيل أو تأكيد النشر من هذه البيئة؛ يحتاج ذلك إلى جلسة Fly.io وصلاحية الحساب. إعداد `min_machines_running = 1` يحافظ على آلة واحدة تعمل لتقليل تأخير بدء التشغيل، وقد يزيد التكلفة مقارنة بإيقاف الآلات عند الخمول. راجعي الأسعار والموارد من لوحة Fly قبل النشر.
 
-```bash
-fly deploy
+### ربط `krar.live` وHTTPS
+
+بعد نجاح النشر، أضيفي النطاقين إلى التطبيق:
+
+```sh
+flyctl certs add krar.live --app server-mariam
+flyctl certs add www.krar.live --app server-mariam
+flyctl certs check krar.live --app server-mariam
 ```
 
-يبدأ الخادم حتى لو لم يكن `POOLED_CONNECTION` مضبوطاً، لكن قاعدة البيانات ستظهر غير متاحة. لا تُعرض بيانات الاتصال أو كلمة المرور عبر الواجهات.
+اتبعي سجلات DNS التي تعرضها Fly لكل شهادة/نطاق في لوحة DNS لمزود النطاق. عادةً يتطلب النطاق الجذري سجلات A وAAAA إلى عناوين Fly، بينما يمكن توجيه `www` عبر CNAME إلى اسم تطبيق `.fly.dev`؛ استخدمي القيم التي تعرضها Fly تحديدًا. لا يمكن إكمال DNS أو إصدار الشهادة دون الوصول إلى لوحة مزود النطاق وحساب Fly.
 
-## واجهات API
+### البريد الإلكتروني
 
-- `GET /health` — فحص حياة الخادم.
-- `GET /api/status` — مدة التشغيل والذاكرة وإصدار Node.js.
-- `GET /api/db` — فحص اتصال PostgreSQL بـ `SELECT 1`، دون كشف أسرار أو بيانات.
-- `GET /api/db/records?limit=20` — قراءة أحدث السجلات (الحد الأقصى 100).
-- `POST /api/db/records` — تخزين JSON كسجل جديد في جدول `app_records`؛ ينشئ الجدول تلقائياً عند أول استخدام.
+الموقع يعرض `info@krar.live` كرابط بريد. هذا لا ينشئ صندوق بريد أو خدمة إرسال؛ يجب إعداد البريد لدى مزود البريد وإضافة سجلات MX وSPF وDKIM وDMARC التي يوفرها ذلك المزود.
 
-واجهتا السجلات محميتان بمتغير `DB_API_TOKEN`، ويجب إرسال الرمز في ترويسة `Authorization: Bearer ...`. مثال:
+## البنية المتضمنة
 
-```bash
-curl 'https://YOUR-APP-NAME.fly.dev/api/db/records?limit=10' \
-  -H 'Authorization: Bearer YOUR_DB_API_TOKEN'
+- خادم HTTP على `0.0.0.0:8080` مع `GET /health` و`GET /api/status`.
+- Docker image تعمل كمستخدم غير root.
+- Fly.io HTTPS إجباري، فحص صحة HTTP، تشغيل تلقائي، ومنطقة أمستردام.
+- لا توجد قاعدة بيانات لأن موقع التعريف والتواصل لا يحتاجها. أضيفي قاعدة بيانات فقط عند الحاجة إلى تخزين نماذج/حسابات، مع إعداد نسخ احتياطي وأسرار منفصلة.
+- السجلات المنظمة، حدود الطلبات والمهل، ترويسات أمان أساسية، ومعالجة إيقاف سلس.
 
-curl -X POST 'https://YOUR-APP-NAME.fly.dev/api/db/records' \
-  -H 'Authorization: Bearer YOUR_DB_API_TOKEN' \
-  -H 'Content-Type: application/json' \
-  -d '{"message":"hello","number":123}'
-```
+## ملاحظة بشأن الإعداد القائم
 
-حد حجم JSON هو 1 MiB. استخدم PostgreSQL pooled connection string الخاص بمزودك وتأكد من السماح باتصال تطبيق Fly.io بقاعدة البيانات. يظل `/health` فحص حياة للخادم فقط؛ استخدم `/api/db` للتحقق من قاعدة البيانات.
-
-## ملاحظات أمنية
-
-نقطة `/api/echo` تجريبية وتعكس ما يُرسل إليها. لا ترسل أسراراً أو بيانات شخصية. عمليات السجلات تتطلب رمزاً سرياً، واستخدم HTTPS دائماً ولا تضع الأسرار داخل المستودع.
+تم الإبقاء على اسم تطبيق Fly الموجود في المستودع. تأكدي باستخدام `flyctl status --app server-mariam` أنه التطبيق المقصود فعلًا قبل النشر، خصوصًا إذا كان `krar.live` مربوطًا بتطبيق Fly آخر.

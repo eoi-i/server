@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 900" role="img" aria-labelledby="title desc">
+  <title id="title">مديرة GLOBALHOLMES LTD</title>
+  <desc id="desc">صورة مؤقتة أنيقة إلى حين إضافة صورة المديرة الفعلية</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#171923"/><stop offset="1" stop-color="#0c1019"/></linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#25f4ee"/><stop offset="1" stop-color="#fe2c55"/></linearGradient>
+    <radialGradient id="glow"><stop stop-color="#25f4ee" stop-opacity=".2"/><stop offset="1" stop-color="#25f4ee" stop-opacity="0"/></radialGradient>
+  </defs>
+  <rect width="760" height="900" fill="url(#bg)"/>
+  <circle cx="390" cy="345" r="360" fill="url(#glow)"/>
+  <circle cx="380" cy="310" r="112" fill="#202530" stroke="url(#accent)" stroke-width="3"/>
+  <path d="M214 715c8-160 70-246 166-246s158 86 166 246" fill="#202530" stroke="url(#accent)" stroke-width="3"/>
+  <text x="380" y="340" text-anchor="middle" fill="#25f4ee" font-family="Arial,sans-serif" font-size="100" font-weight="700">G</text>
+  <text x="380" y="790" text-anchor="middle" fill="#f7f5f2" font-family="Arial,sans-serif" font-size="28" font-weight="700">GLOBALHOLMES LTD</text>
+  <text x="380" y="830" text-anchor="middle" fill="#aaa8b2" font-family="Arial,sans-serif" font-size="19">TikTok LIVE Agency · United Kingdom</text>
+</svg>

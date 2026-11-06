@@ -1,16 +1,14 @@
 {
-  "name": "server-mariam",
-  "version": "4.0.0",
+  "name": "globalholmes-ltd-website",
+  "version": "1.0.0",
   "private": true,
-  "description": "Node.js HTTP server with PostgreSQL support",
+  "description": "Arabic-first website and Node.js web server for GLOBALHOLMES LTD",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "check": "node --check server.js"
   },
   "engines": {
     "node": ">=22"
-  },
-  "dependencies": {
-    "pg": "^8.16.3"
   }
 }
